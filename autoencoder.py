@@ -17,11 +17,22 @@ sparse_beta = 3  # weight of sparsity penalty term
 lr = 0.1
 batch_size = 128
 
+def normalizeDataset(dataset):
+	dataset = dataset - np.mean(dataset)
+	""" Truncate to +/-3 standard deviations and scale to -1 to 1 """
+	std_dev = 3 * np.std(dataset)
+	dataset = np.maximum(np.minimum(dataset, std_dev), -std_dev) / std_dev
+
+	""" Rescale from [-1, 1] to [0.1, 0.9] """
+	dataset = (dataset + 1) * 0.4 + 0.1
+	return dataset
+
 # 准备数据
 img = misc.imread('1.png', flatten=True)
 print img.shape
-# misc.imsave('2.png', img)
-img = img / 255.0
+
+img = normalizeDataset(img)
+
 data = np.zeros((count, crop_size, crop_size))
 for i in range(count):
 	y = random.randint(0, img.shape[0]-crop_size-1)
