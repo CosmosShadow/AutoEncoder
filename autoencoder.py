@@ -15,7 +15,7 @@ spare_rate = 0.01
 decay_lambda = 0.0001  # weight decay parameter
 sparse_beta = 3  # weight of sparsity penalty term
 lr = 0.1
-lr_decay = 0.9
+lr_decay = 0.999
 batch_size = 128
 
 def normalizeDataset(dataset):
