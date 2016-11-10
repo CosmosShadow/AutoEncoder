@@ -12,6 +12,10 @@ crop_size = 8
 count = 10000
 hidden_size = 7*7
 spare_rate = 0.1
+decay_lambda = 0.0001  # weight decay parameter
+sparse_beta = 3  # weight of sparsity penalty term
+lr = 0.01
+batch_size = 128
 
 # 准备数据
 img = misc.imread('1.png', flatten=True)
@@ -36,12 +40,14 @@ x_reshape = tf.reshape(x, [-1, crop_size*crop_size])
 y_reshape = tf.reshape(y, [-1, crop_size*crop_size])
 
 x_wrap = pt.wrap(x_reshape)
-with pt.defaults_scope(activation_fn=tf.nn.relu, l2loss=0):
+with pt.defaults_scope(activation_fn=tf.nn.sigmoid, l2loss=decay_lambda):
 	hidden = x_wrap.fully_connected(hidden_size)
+	output = hidden.fully_connected(crop_size*crop_size)
+
+# 所有变量
+for v in tf.all_variables():
+	print v.name
 weights = [v for v in tf.all_variables() if v.name == "fully_connected/weights:0"][0]
-bias = tf.Variable(tf.constant(0.0, shape=[crop_size*crop_size]), name='hidden_bias', trainable=True)
-output = tf.matmul(hidden, tf.transpose(weights)) + bias
-# hidden.fully_connected(crop_size*crop_size, activation_fn=None)
 
 # 添加稀疏性
 active_mean = tf.reduce_mean(hidden, -1)
@@ -50,17 +56,13 @@ spare_loss_scale = tf.reduce_mean(spare_loss)
 
 loss_regression = tf.reduce_mean(tf.square(tf.sub(output, y_reshape)))
 
-loss = loss_regression + spare_loss_scale * 0.01
+loss = loss_regression + spare_loss_scale * sparse_beta
 
-train_op = tf.train.MomentumOptimizer(0.01, 0.9, use_nesterov=True).minimize(loss)
-
-# 所有变量
-for v in tf.all_variables():
-	print v.name
+train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
 
 # 最大激活权重
-def max_activate_weight(weights):
-	image = np.copy(weights)
+def max_activate_weight(weights_):
+	image = np.copy(weights_)
 	for i in range(image.shape[0]):
 		base = np.sqrt(np.square(image[i]).sum())
 		image[i] = np.absolute(image[i]) / base
@@ -68,21 +70,7 @@ def max_activate_weight(weights):
 		# image[i] /= image[i].max()
 	return image
 
-# 画图
-# TODO: 仔细看看这个代码
-def images2one(data, normalize=True, padsize=1, padval=0):
-	if normalize:
-		data -= data.min()
-		data /= data.max()
-	n = int(np.ceil(np.sqrt(data.shape[0]))) # force square 
-	padding = ((0, n ** 2 - data.shape[0]), (0, padsize), (0, padsize)) + ((0, 0),) * (data.ndim - 3)
-	data = np.pad(data, padding, mode='constant', constant_values=(padval, padval))
-	# tile the filters into an image
-	data = data.reshape((n, n) + data.shape[1:]).transpose((0, 2, 1, 3) + tuple(range(4, data.ndim + 1)))
-	data = data.reshape((n * data.shape[1], n * data.shape[3]) + data.shape[4:])
-	return data
-
-def images1(data, padsize=1, padval=1.0):
+def images2one(data, padsize=1, padval=1.0):
 	# data -= data.min()
 	# data /= data.max()
 	n = int(np.ceil(np.sqrt(data.shape[0])))
@@ -103,10 +91,10 @@ config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
 	sess.run(tf.initialize_all_variables())
-	for i in range(100):
+	for i in range(20):
 		loss_arr = []
 		for _ in xrange(1000):
-			train_x, trian_y = dataSets.train.next_batch(32)
+			train_x, trian_y = dataSets.train.next_batch(batch_size)
 			_, loss_ = sess.run([train_op, loss], feed_dict={x:train_x, y:trian_y})
 			loss_arr.append(loss_)
 		print 'epoch: %d   loss: %.6f' % (i+1, np.array(loss_arr).mean())
@@ -115,8 +103,7 @@ with tf.Session(config=config) as sess:
 	weights_ = sess.run(weights)
 	weights_iamges = max_activate_weight(weights_.transpose([1, 0]))
 	weights_iamges = weights_iamges.reshape([-1, crop_size, crop_size])
-	# one_image = images2one(weights_iamges)
-	one_image = images1(weights_iamges, padval=0.0)
+	one_image = images2one(weights_iamges, padval=0.0)
 	misc.imsave('weights.png', one_image)
 
 
