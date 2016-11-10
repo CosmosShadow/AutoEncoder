@@ -14,7 +14,7 @@ hidden_size = 5*5
 spare_rate = 0.01
 decay_lambda = 0.0001  # weight decay parameter
 sparse_beta = 3  # weight of sparsity penalty term
-lr = 0.01
+lr = 0.1
 batch_size = 128
 
 # 准备数据
@@ -49,6 +49,8 @@ for v in tf.all_variables():
 	print v.name
 weights = [v for v in tf.all_variables() if v.name == "fully_connected/weights:0"][0]
 
+print weights.get_shape()
+
 # 添加稀疏性
 active_mean = tf.reduce_mean(hidden, -1)
 spare_loss = spare_rate * tf.log(spare_rate/active_mean) + (1-spare_rate) * tf.log((1-spare_rate)/(1-active_mean))
@@ -61,18 +63,12 @@ loss = loss_regression + spare_loss_scale * sparse_beta
 train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
 
 # 最大激活权重
-def max_activate_weight(weights_):
-	image = np.copy(weights_)
-	for i in range(image.shape[0]):
-		base = np.sqrt(np.square(image[i]).sum())
-		image[i] = np.absolute(image[i]) / base
-		# image[i] -= image[i].min()
-		# image[i] /= image[i].max()
+def normal_weights(weights_):
+	weights_ -= np.mean(weights_)
+	weights_ = weights_ / np.amax(np.absolute(weights_))
 	return image
 
 def images2one(data, padsize=1, padval=1.0):
-	# data -= data.min()
-	# data /= data.max()
 	n = int(np.ceil(np.sqrt(data.shape[0])))
 	h = n * data.shape[1] + (n - 1)
 	w = n * data.shape[2] + (n - 1)
@@ -101,9 +97,9 @@ with tf.Session(config=config) as sess:
 
 	# 获取权重
 	weights_ = sess.run(weights)
-	weights_iamges = max_activate_weight(weights_.transpose([1, 0]))
-	weights_iamges = weights_iamges.reshape([-1, crop_size, crop_size])
-	one_image = images2one(weights_iamges, padval=0.0)
+	weights_ = normal_weights(weights_)
+	weights_ = weights_.transpose([1, 0]).reshape([-1, crop_size, crop_size])
+	one_image = images2one(weights_, padval=0.0)
 	misc.imsave('weights.png', one_image)
 
 
