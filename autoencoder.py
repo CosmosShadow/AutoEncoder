@@ -66,7 +66,7 @@ train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
 def normal_weights(weights_):
 	weights_ -= np.mean(weights_)
 	weights_ = weights_ / np.amax(np.absolute(weights_))
-	return image
+	return weights_
 
 def images2one(data, padsize=1, padval=1.0):
 	n = int(np.ceil(np.sqrt(data.shape[0])))
@@ -87,7 +87,7 @@ config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
 	sess.run(tf.initialize_all_variables())
-	for i in range(50):
+	for i in range(1):
 		loss_arr = []
 		for _ in xrange(1000):
 			train_x, trian_y = dataSets.train.next_batch(batch_size)
