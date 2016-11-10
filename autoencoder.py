@@ -64,8 +64,8 @@ train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
 
 # 最大激活权重
 def normal_weights(weights_):
-	weights_ -= np.mean(weights_)
-	weights_ = weights_ / np.amax(np.absolute(weights_))
+	weights_ -= np.min(weights_)
+	weights_ = weights_ / np.max(weights_)
 	return weights_
 
 def images2one(data, padsize=1, padval=1.0):
@@ -99,7 +99,7 @@ with tf.Session(config=config) as sess:
 	weights_ = sess.run(weights)
 	weights_ = normal_weights(weights_)
 	weights_ = weights_.transpose([1, 0]).reshape([-1, crop_size, crop_size])
-	one_image = images2one(weights_, padval=0.0)
+	one_image = images2one(weights_, padval=1.0)
 	misc.imsave('weights.png', one_image)
 
 
