@@ -10,8 +10,8 @@ import data_interface
 # 超参
 crop_size = 8
 count = 10000
-hidden_size = 7*7
-spare_rate = 0.1
+hidden_size = 5*5
+spare_rate = 0.01
 decay_lambda = 0.0001  # weight decay parameter
 sparse_beta = 3  # weight of sparsity penalty term
 lr = 0.01
@@ -91,7 +91,7 @@ config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
 	sess.run(tf.initialize_all_variables())
-	for i in range(20):
+	for i in range(50):
 		loss_arr = []
 		for _ in xrange(1000):
 			train_x, trian_y = dataSets.train.next_batch(batch_size)
