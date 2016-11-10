@@ -62,11 +62,6 @@ loss = loss_regression + spare_loss_scale * sparse_beta
 
 train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
 
-# 最大激活权重
-def normal_weights(weights_):
-	weights_ -= np.min(weights_)
-	weights_ = weights_ / np.max(weights_)
-	return weights_
 
 def images2one(data, padsize=1, padval=1.0):
 	n = int(np.ceil(np.sqrt(data.shape[0])))
@@ -85,6 +80,15 @@ config = tf.ConfigProto()
 config.gpu_options.per_process_gpu_memory_fraction = 0.8
 config.gpu_options.allow_growth = True
 
+def vis_weights(sess):
+	# 获取权重
+	weights_ = sess.run(weights)
+	weights_ = weights_ - np.min(weights_)
+	weights_ = weights_ / np.max(weights_)
+	weights_ = weights_.transpose().reshape([-1, crop_size, crop_size])
+	one_image = images2one(weights_, padval=1.0)
+	misc.imsave('weights.png', one_image)
+
 with tf.Session(config=config) as sess:
 	sess.run(tf.initialize_all_variables())
 	for i in range(100):
@@ -94,13 +98,10 @@ with tf.Session(config=config) as sess:
 			_, loss_ = sess.run([train_op, loss], feed_dict={x:train_x, y:trian_y})
 			loss_arr.append(loss_)
 		print 'epoch: %d   loss: %.6f' % (i+1, np.array(loss_arr).mean())
+		if i%10==0:
+			vis_weights(sess)
 
-	# 获取权重
-	weights_ = sess.run(weights)
-	weights_ = normal_weights(weights_)
-	weights_ = weights_.transpose([1, 0]).reshape([-1, crop_size, crop_size])
-	one_image = images2one(weights_, padval=1.0)
-	misc.imsave('weights.png', one_image)
+
 
 
 
