@@ -15,6 +15,7 @@ spare_rate = 0.01
 decay_lambda = 0.0001  # weight decay parameter
 sparse_beta = 3  # weight of sparsity penalty term
 lr = 0.1
+lr_decay = 0.9
 batch_size = 128
 
 def normalizeDataset(dataset):
@@ -55,11 +56,10 @@ with pt.defaults_scope(activation_fn=tf.nn.sigmoid, l2loss=decay_lambda):
 	hidden = x_wrap.fully_connected(hidden_size)
 	output = hidden.fully_connected(crop_size*crop_size)
 
-# 所有变量
-for v in tf.all_variables():
-	print v.name
+# # 所有变量
+# for v in tf.all_variables():
+# 	print v.name
 weights = [v for v in tf.all_variables() if v.name == "fully_connected/weights:0"][0]
-
 print weights.get_shape()
 
 # 添加稀疏性
@@ -68,10 +68,11 @@ spare_loss = spare_rate * tf.log(spare_rate/active_mean) + (1-spare_rate) * tf.l
 spare_loss_scale = tf.reduce_mean(spare_loss)
 
 loss_regression = tf.reduce_mean(tf.square(tf.sub(output, y_reshape)))
-
 loss = loss_regression + spare_loss_scale * sparse_beta
 
-train_op = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True).minimize(loss)
+batch = tf.Variable(0, dtype=tf.float32)
+learning_rate = tf.train.exponential_decay(lr, batch * batch_size, 1000*batch_size, lr_decay, staircase=True)
+train_op = tf.train.MomentumOptimizer(learning_rate, 0.9, use_nesterov=True).minimize(loss, global_step=batch)
 
 
 def images2one(data, padsize=1, padval=1.0):
@@ -106,9 +107,9 @@ with tf.Session(config=config) as sess:
 		loss_arr = []
 		for _ in xrange(1000):
 			train_x, trian_y = dataSets.train.next_batch(batch_size)
-			_, loss_ = sess.run([train_op, loss], feed_dict={x:train_x, y:trian_y})
+			_, loss_, lr_ = sess.run([train_op, loss, learning_rate], feed_dict={x:train_x, y:trian_y})
 			loss_arr.append(loss_)
-		print 'epoch: %d   loss: %.6f' % (i+1, np.array(loss_arr).mean())
+		print 'epoch: %d   lr: %.5f   loss: %.6f' % (i+1, lr_, np.array(loss_arr).mean())
 		if i%10==0:
 			vis_weights(sess)
 
