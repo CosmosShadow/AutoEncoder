@@ -87,7 +87,7 @@ config.gpu_options.allow_growth = True
 
 with tf.Session(config=config) as sess:
 	sess.run(tf.initialize_all_variables())
-	for i in range(1):
+	for i in range(100):
 		loss_arr = []
 		for _ in xrange(1000):
 			train_x, trian_y = dataSets.train.next_batch(batch_size)
